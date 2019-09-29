@@ -120,6 +120,7 @@ var GameState = function (_Phaser$State) {
     _createClass(GameState, [{
         key: 'preload',
         value: function preload() {
+            //Load all resources
             this.load.image('bg-score', 'assets/images/bg-score.png');
             this.load.image('big-shadow', 'assets/images/big-shadow.png');
             this.load.image('btn-play', 'assets/images/btn-play.png');
@@ -159,11 +160,14 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'create',
         value: function create() {
+            //Create game initial state
+
             //Add background
             var background = this.add.sprite(0, 0, 'background');
             background.angle = 90;
             background.x = _constants.GAME_WIGTH;
 
+            //Add main menu
             this.createMainMenu();
         }
     }, {
@@ -173,10 +177,12 @@ var GameState = function (_Phaser$State) {
 
             this.mainMenu = this.add.group();
 
+            //Add logo
             var donutsLogo = this.add.image(_constants.GAME_WIGTH / 2, 0, 'donuts_logo');
             donutsLogo.anchor.setTo(0.5, 0);
             this.mainMenu.add(donutsLogo);
 
+            //Add play button
             var playBtn = this.add.button(_constants.GAME_WIGTH / 2, _constants.GAME_HEIGHT / 2, 'btn-play', function () {
                 return _this2.startGame();
             });
@@ -191,6 +197,7 @@ var GameState = function (_Phaser$State) {
             //inputEnabled: contain state - swaping donuts allowed or not
             this.inputEnabled = true;
 
+            //flag of fast donuts falling
             this.fastFall = false;
 
             //matrix contain image of game board
@@ -216,32 +223,36 @@ var GameState = function (_Phaser$State) {
 
             //build board with donuts
             this.createDonuts();
-            if (this.matchAll()) {
-                this.handleMatches();
-            }
+            /*if (this.matchAll()) {
+                setTimeout(() => {this.handleMatches()}, 250)
+            }*/
+            this.handleMatches();
 
             //bind events on mouse btn up and down
             this.input.onDown.add(this.onSelect, this);
             this.input.onUp.add(this.onRelease, this);
 
-            console.log(this.donuts);
+            // console.log(this.donuts);
         }
     }, {
         key: 'createUI',
         value: function createUI() {
             var _this3 = this;
 
+            //All interface elements
+
+            //Score imege
             var bgScore = this.add.image(_constants.GAME_WIGTH / 2, 0, 'bg-score');
             bgScore.anchor.setTo(0.5, 0);
             // bgScore.x = GAME_WIGTH / 2;
 
+            //Score label
             this.textScore = this.add.text(_constants.GAME_WIGTH / 2 + 120, 60, this.score, {
                 font: "65px Arial",
                 fill: "#ffe6b3",
                 align: "right"
             });
             this.textScore.anchor.setTo(1, 0);
-            // textScore.x = GAME_WIGTH / 2 + 120;
 
             /*//score counter quick test
             setInterval(() => {
@@ -249,7 +260,7 @@ var GameState = function (_Phaser$State) {
                 textScore.text = this.score;
             }, 1000);*/
 
-            //Add timer
+            //Add timer label
             var timer = this.add.text(_constants.GAME_WIGTH - 50, 60, GameState.showTimeInSeconds(this.timer), { font: "65px Arial", fill: "#6397ff", align: "right" });
             timer.anchor.set(1, 0);
             setInterval(function () {
@@ -260,6 +271,7 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'createDonuts',
         value: function createDonuts() {
+            //First spawn of donuts
             this.donuts = this.add.group();
 
             for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
@@ -278,6 +290,8 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'onSelect',
         value: function onSelect(pointer) {
+            //selection donut
+
             // console.log('selected', pointer);
             var pointerY = pointer.y - _constants.OFFSET;
             var pointerX = pointer.x;
@@ -296,13 +310,16 @@ var GameState = function (_Phaser$State) {
                         this.input.addMoveCallback(this.move, this);
                     } else {
                         if (this.areSame(pointed, this.selected.donut)) {
+                            //if donut already selected, remove selection
                             this.selected.donut.scale.setTo(1);
                             this.selected.donut = null;
                         } else {
                             if (this.areNext(pointed, this.selected.donut)) {
+                                //if donuts are neighbors, swap them
                                 this.selected.donut.scale.setTo(1);
                                 this.swap(this.selected.donut, pointed, true);
                             } else {
+                                //choose pointed donut
                                 this.selected.donut.scale.setTo(1);
                                 pointed.scale.setTo(1.2);
                                 this.selected.donut = pointed;
@@ -316,11 +333,13 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'areNext',
         value: function areNext(donut1, donut2) {
+            //are donut1 and donut2 located in neighboring cells?
             return Math.abs(this.getRow(donut1) - this.getRow(donut2)) + Math.abs(this.getCol(donut1) - this.getCol(donut2)) === 1;
         }
     }, {
         key: 'areSame',
         value: function areSame(donut1, donut2) {
+            //are donut1 and 2 the same donut?
             return this.getRow(donut1) === this.getRow(donut2) && this.getCol(donut1) === this.getCol(donut2);
         }
     }, {
@@ -342,36 +361,39 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'move',
         value: function move(event, pX, pY) {
-            console.log('move');
+            //action on pointer moving
+            // console.log('move');
             if (event.id === 0) {
                 var dX = pX - this.selected.donut.x,
                     dY = pY - this.selected.donut.y,
                     dI = 0,
                     dJ = 0;
                 if (Math.abs(dX) > _constants.HALF_DONUT_SIZE) {
-                    //TODO: refactor this
-                    if (dX > 0) {
+                    dJ = dX > 0 ? 1 : -1;
+                    /*if (dX > 0) {
                         dJ = 1;
                     } else {
                         dJ = -1;
-                    }
+                    }*/
                 } else {
                     if (Math.abs(dY) > _constants.HALF_DONUT_SIZE) {
-                        if (dY > 0) {
+                        dI = dY > 0 ? 1 : -1;
+                        /*if (dY > 0) {
                             dI = 1;
                         } else {
                             dI = -1;
-                        }
+                        }*/
                     }
                 }
                 if (dI + dJ !== 0) {
+                    //try to swap donuts
                     var pointed = this.getFromMatrix(this.getRow(this.selected.donut) + dI, this.getCol(this.selected.donut) + dJ);
-                    console.log('pointed', pointed, 'selected', this.selected.donut);
+                    // console.log('pointed', pointed, 'selected', this.selected.donut);
                     if (pointed !== -1) {
                         this.selected.donut.scale.setTo(1);
                         // console.log('pointed', pointed, 'selected', this.selected.donut);
-                        // this.swap(this.selected.donut, pointed, true);
-                        this.swap(pointed, this.selected, true);
+                        this.swap(this.selected.donut, pointed, true);
+                        // this.swap(pointed, this.selected, true);
                         this.input.deleteMoveCallback(this.move, this);
                     }
                 }
@@ -382,18 +404,20 @@ var GameState = function (_Phaser$State) {
         value: function swap(donut1, donut2, swapBack) {
             var _this4 = this;
 
+            //swapping donuts
             // console.log('swap');
 
             // this.inputEnabled = false;
             this.pauseGame();
-            var fromColor = donut1.key;
+            // let fromColor = donut1.key;
             var fromSprite = donut1;
-            var toColor = donut2.key;
+            // let toColor = donut2.key;
             var toSprite = donut2;
             // this.matrix[this.getRow(donut1)][this.getCol(donut1)].key = toColor;
             this.matrix[this.getRow(donut1)][this.getCol(donut1)] = donut2;
             // this.matrix[this.getRow(donut2)][this.getCol(donut2)].key = fromColor;
             this.matrix[this.getRow(donut2)][this.getCol(donut2)] = donut1;
+            //swap animation
             var donut1Tween = this.add.tween(this.matrix[this.getRow(donut1)][this.getCol(donut1)]).to({
                 x: this.getCol(donut1) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
                 , y: this.getRow(donut1) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
@@ -402,10 +426,9 @@ var GameState = function (_Phaser$State) {
                 x: this.getCol(donut2) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
                 , y: this.getRow(donut2) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
             }, _constants.SWAP_SPEED, Phaser.Easing.Linear.None, true);
-
+            //after animation complete match donuts
             donut2Tween.onComplete.add(function () {
-                // this.inputEnabled = true;
-
+                console.log('this.matchAll', _this4.matchAll());
                 if (!_this4.matchAll() && swapBack) {
                     _this4.swap(donut1, donut2, false);
                 } else {
@@ -418,34 +441,34 @@ var GameState = function (_Phaser$State) {
                         _this4.selected.donut = null;
                     }
                 }
-                // this.resumeGame();
             });
         }
     }, {
         key: 'matchByRow',
         value: function matchByRow(i, j) {
-            //TODO: rework conditions
+            //find donuts with the same color in a row
             return this.getFromMatrix(i, j).key === this.getFromMatrix(i, j - 1).key && this.getFromMatrix(i, j).key === this.getFromMatrix(i, j - 2).key;
         }
     }, {
         key: 'matchByColumn',
         value: function matchByColumn(i, j) {
-            //TODO: rework conditions
-
+            //find donuts with the same color in a column
             return this.getFromMatrix(i, j).key === this.getFromMatrix(i - 1, j).key && this.getFromMatrix(i, j).key === this.getFromMatrix(i - 2, j).key;
         }
     }, {
         key: 'match',
         value: function match(i, j) {
-            //TODO: collect all matches in one method if other don't use as single
+            //collect all matches
             return this.matchByRow(i, j) || this.matchByColumn(i, j);
         }
     }, {
         key: 'matchAll',
         value: function matchAll() {
+            //find matches at the board
             for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
                 for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
                     if (this.match(i, j)) {
+                        console.log('this.match', i, j);
                         return true;
                     }
                 }
@@ -455,6 +478,7 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'handleMatches',
         value: function handleMatches() {
+            //fill remove array
             /*console.log('this.remove', this);
             console.log('this.remove', this.remove);*/
             this.remove = [];
@@ -471,6 +495,7 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'handleVerticalMatches',
         value: function handleVerticalMatches() {
+            //find matched donuts in column
             for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
                 var colorStreak = 1;
                 var currentColor = '';
@@ -496,6 +521,7 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'handleHorizontalMatches',
         value: function handleHorizontalMatches() {
+            //find matched donuts in row
             for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
                 var colorStreak = 1;
                 var currentColor = '';
@@ -523,25 +549,29 @@ var GameState = function (_Phaser$State) {
         value: function destroy() {
             var _this5 = this;
 
+            //remove all donuts, flagged at remove array
             console.log('destroying');
-            console.log('this.remove', this.remove);
+            // console.log('this.remove', this.remove);
             var destroyed = 0;
             for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
                 for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
+                    // console.log('this.remove[i][j]', this.remove[i][j], i, j);
+
                     if (this.remove[i][j] > 0) {
-                        console.log('this.remove[i][j]', this.remove[i][j], i, j);
+                        //removing animation
                         var destroyTween = this.add.tween(this.matrix[i][j]).to({
                             alpha: 0
                         }, _constants.DESTROY_SPEED, Phaser.Easing.Linear.None, true);
                         destroyed++;
+                        //after animation complete, destroy donut
                         destroyTween.onComplete.add(function (donut) {
                             donut.destroy();
                             destroyed--;
                             if (destroyed === 0) {
                                 _this5.fall();
-                                /*if (this.fastFall) {
-                                    this.respawn();
-                                }*/
+                                if (_this5.fastFall) {
+                                    _this5.respawn();
+                                }
                             }
                         });
                         this.matrix[i][j] = null;
@@ -554,6 +584,7 @@ var GameState = function (_Phaser$State) {
         value: function fall() {
             var _this6 = this;
 
+            //move down donuts
             var fallen = 0;
             var restart = false;
             for (var i = _constants.DONUTS_NUMBER - 1; i >= 0; i--) {
@@ -575,9 +606,9 @@ var GameState = function (_Phaser$State) {
                                     if (restart) {
                                         _this6.fall();
                                     } else {
-                                        /*if (!this.fastFall) {
-                                            this.respawn();
-                                        }*/
+                                        if (!_this6.fastFall) {
+                                            _this6.respawn();
+                                        }
                                     }
                                 }
                             });
@@ -588,7 +619,7 @@ var GameState = function (_Phaser$State) {
                 }
             }
             if (fallen === 0) {
-                // this.respawn();
+                this.respawn();
             }
         }
     }, {
@@ -596,7 +627,8 @@ var GameState = function (_Phaser$State) {
         value: function respawn() {
             var _this7 = this;
 
-            var replenished = 0;
+            //add new donuts instead of destroyed
+            var respwaned = 0;
             var restart = false;
             for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
                 var emptySpots = this.holesInCol(j);
@@ -614,15 +646,19 @@ var GameState = function (_Phaser$State) {
                         var donut2Tween = this.add.tween(this.matrix[i][j]).to({
                             y: _constants.DONUT_SIZE * i + _constants.HALF_DONUT_SIZE + _constants.OFFSET
                         }, _constants.FALL_SPEED, Phaser.Easing.Linear.None, true);
-                        replenished++;
+                        respwaned++;
                         donut2Tween.onComplete.add(function () {
-                            replenished--;
-                            if (replenished === 0) {
+                            respwaned--;
+                            if (respwaned === 0) {
                                 if (restart) {
                                     _this7.fall();
                                 } else {
                                     if (_this7.matchAll()) {
-                                        _this7.time.events.add(250, _this7.handleMatches);
+                                        setTimeout(function () {
+                                            _this7.handleMatches();
+                                        }, 250);
+                                        /*Problem with context
+                                        this.time.events.add(250, this.handleMatches);*/
                                     } else {
                                         _this7.resumeGame();
                                         _this7.selected.donut = null;
@@ -637,6 +673,7 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'holesBelow',
         value: function holesBelow(row, col) {
+            //count holes below donut at position
             var result = 0;
             for (var i = row + 1; i < _constants.DONUTS_NUMBER; i++) {
                 if (this.matrix[i][col] === null) {
@@ -648,6 +685,7 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'holesInCol',
         value: function holesInCol(col) {
+            //count holes in column
             var result = 0;
             for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
                 if (this.matrix[i][col] === null) {
@@ -659,11 +697,12 @@ var GameState = function (_Phaser$State) {
     }, {
         key: 'getFromMatrix',
         value: function getFromMatrix(i, j) {
-            //TODO: rework conditions
-            if (i < 0 || i >= _constants.DONUTS_NUMBER || j < 0 || j >= _constants.DONUTS_NUMBER) {
+            //get donut from matrix
+            return i >= 0 && i < _constants.DONUTS_NUMBER && j >= 0 && j < _constants.DONUTS_NUMBER ? this.matrix[i][j] : -1;
+            /*if (i < 0 || i >= DONUTS_NUMBER || j < 0 || j >= DONUTS_NUMBER) {
                 return -1;
             }
-            return this.matrix[i][j];
+            return this.matrix[i][j];*/
         }
     }, {
         key: 'pauseGame',
