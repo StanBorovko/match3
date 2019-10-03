@@ -558,8 +558,41 @@ function move(event, pX, pY) {
     }
 }
 
-function swap() {
+function swap(selected, pointed, swapBack) {
+    var _this = this;
+
+    //swapping donuts
     console.log('swap!');
+    pauseGame();
+    var iS = getI(selected),
+        jS = getJ(selected),
+        iP = getI(pointed),
+        jP = getJ(pointed);
+    matrix[iS][jS] = pointed;
+    matrix[iP][jP] = selected;
+    var donut1Tween = game.add.tween(matrix[iS][jS]).to({
+        x: iS * _constants.DONUT_SIZE,
+        y: jS * _constants.DONUT_SIZE
+    }, C.SWAP_SPEED, Phaser.Easing.Linear.None, true);
+    var donut2Tween = game.add.tween(matrix[iP][jP]).to({
+        x: iP * _constants.DONUT_SIZE,
+        y: jP * _constants.DONUT_SIZE
+    }, C.SWAP_SPEED, Phaser.Easing.Linear.None, true);
+    //after animation complete match donuts
+    donut2Tween.onComplete.add(function () {
+        if (!_this.matchAll() && swapBack) {
+            _this.swap(donut1, donut2, false);
+        } else {
+            if (_this.matchAll()) {
+                _this.handleMatches();
+                _this.updateTimer(2);
+                _this.updateScore();
+            } else {
+                _this.resumeGame();
+                _this.selected.donut = null;
+            }
+        }
+    });
 }
 
 function pauseGame() {
@@ -587,10 +620,10 @@ function updateTimer(seconds) {
 function timeUp() {
     console.log('time up!');
     timer.stop();
-    /*inputEnabled = false;
-    let timeup = game.add.image(C.GAME_WIGTH / 2, C.GAME_HEIGHT / 2, 'text-timeup');
+    inputEnabled = false;
+    var timeup = game.add.image(C.GAME_WIGTH / 2, C.GAME_HEIGHT / 2, 'text-timeup');
     timeup.anchor.set(0.5);
-    showGameOver();*/
+    showGameOver();
 }
 
 function showGameOver() {
