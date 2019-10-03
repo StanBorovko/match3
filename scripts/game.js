@@ -18,751 +18,602 @@ var DONUTS = exports.DONUTS = ['gem-01', 'gem-02', 'gem-03', 'gem-04', 'gem-05',
 
 var DEFAULT_SELECTED_OBJ = exports.DEFAULT_SELECTED_OBJ = { x: 0, y: 0, donut: null };
 
-var DESTROY_SPEED = exports.DESTROY_SPEED = 100;
-var SWAP_SPEED = exports.SWAP_SPEED = 100;
-var FALL_SPEED = exports.FALL_SPEED = 100;
+var TEXT_COLOR_LILAC = exports.TEXT_COLOR_LILAC = '#e063f1';
+var TEXT_COLOR_WHITE = exports.TEXT_COLOR_WHITE = '#f1f1f1';
+var TEXT_STROKE = exports.TEXT_STROKE = 10;
+var TEXT_STROKE_COLOR = exports.TEXT_STROKE_COLOR = '#1c1c1c';
+
+var SWAP_SPEED = exports.SWAP_SPEED = 200;
+var DESTROY_SPEED = exports.DESTROY_SPEED = 200;
+var FALL_SPEED = exports.FALL_SPEED = 200;
+
+var FALL_DELAY = exports.FALL_DELAY = DESTROY_SPEED * 2;
+var RESPAWN_DELAY = exports.RESPAWN_DELAY = FALL_DELAY + FALL_SPEED * 2;
 
 },{}],2:[function(require,module,exports){
-'use strict';
+"use strict";
 
-var _GameState = require('src/states/GameState');
+var _constants = require("./constants");
 
-var _GameState2 = _interopRequireDefault(_GameState);
+var C = _interopRequireWildcard(_constants);
 
-var _constants = require('./constants');
-
-function _interopRequireDefault(obj) {
-	return obj && obj.__esModule ? obj : { default: obj };
+function _interopRequireWildcard(obj) {
+    if (obj && obj.__esModule) {
+        return obj;
+    } else {
+        var newObj = {};if (obj != null) {
+            for (var key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key];
+            }
+        }newObj.default = obj;return newObj;
+    }
 }
 
-function _classCallCheck(instance, Constructor) {
-	if (!(instance instanceof Constructor)) {
-		throw new TypeError("Cannot call a class as a function");
-	}
+function _toConsumableArray(arr) {
+    if (Array.isArray(arr)) {
+        for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) {
+            arr2[i] = arr[i];
+        }return arr2;
+    } else {
+        return Array.from(arr);
+    }
 }
 
-function _possibleConstructorReturn(self, call) {
-	if (!self) {
-		throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-	}return call && (typeof call === "object" || typeof call === "function") ? call : self;
-}
+console.log(C);
 
-function _inherits(subClass, superClass) {
-	if (typeof superClass !== "function" && superClass !== null) {
-		throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-	}subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-}
-
-var Game = function (_Phaser$Game) {
-	_inherits(Game, _Phaser$Game);
-
-	function Game() {
-		_classCallCheck(this, Game);
-
-		var _this = _possibleConstructorReturn(this, (Game.__proto__ || Object.getPrototypeOf(Game)).call(this, _constants.GAME_WIGTH, _constants.GAME_HEIGHT, Phaser.AUTO, 'match3', null));
-
-		_this.state.add('GameState', _GameState2.default, false);
-		_this.state.start('GameState');
-		return _this;
-	}
-
-	return Game;
-}(Phaser.Game);
-
-new Game();
-
-},{"./constants":1,"src/states/GameState":3}],3:[function(require,module,exports){
-'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
+var game = new Phaser.Game(C.GAME_WIGTH, C.GAME_HEIGHT, Phaser.CANVAS, 'match3', {
+    preload: preload,
+    create: create
 });
 
-var _createClass = function () {
-    function defineProperties(target, props) {
-        for (var i = 0; i < props.length; i++) {
-            var descriptor = props[i];descriptor.enumerable = descriptor.enumerable || false;descriptor.configurable = true;if ("value" in descriptor) descriptor.writable = true;Object.defineProperty(target, descriptor.key, descriptor);
+//  The Google WebFont Loader will look for this object, so create it before loading the script.
+var WebFontConfig = {
+    //  'active' means all requested fonts have finished loading
+    //  We set a 1 second delay before calling 'createText'.
+    //  For some reason if we don't the browser cannot render the text the first time it's created.
+    // active: function() { game.time.events.add(Phaser.Timer.SECOND, createText, this); },
+
+    //  The Google Fonts we want two load (specify as many as you like in the array)
+    google: {
+        families: ["Fredoka One"]
+    }
+
+};
+
+//Create game initial state
+//group of tasty donuts
+var donuts = void 0;
+//inputEnabled: contain state - swaping donuts allowed or not
+var inputEnabled = true;
+
+//flag of fast donuts falling
+var fastFall = false;
+
+//matrix contain image of game board
+var matrix = [];
+
+//list of items for remove
+var matchMap = [];
+
+//Add score
+var score = 0,
+    textScore = void 0;
+
+//Reset target and selected donuts
+var selected = null;
+var target = null;
+
+//Add timer;
+var timer = void 0,
+    textTimer = void 0;
+
+function preload() {
+    //Load all resources
+    //images
+    game.load.image('bg-score', 'assets/images/bg-score.png');
+    game.load.image('big-shadow', 'assets/images/big-shadow.png');
+    game.load.image('btn-play', 'assets/images/btn-play.png');
+    game.load.image('btn-sfx', 'assets/images/btn-sfx.png');
+    game.load.image('donut', 'assets/images/donut.png');
+    game.load.image('donuts_logo', 'assets/images/donuts_logo.png');
+    game.load.image('text-timeup', 'assets/images/text-timeup.png');
+
+    game.load.image('background', 'assets/images/backgrounds/background.jpg');
+
+    game.load.image('gem-01', 'assets/images/game/gem-01.png');
+    game.load.image('gem-02', 'assets/images/game/gem-02.png');
+    game.load.image('gem-03', 'assets/images/game/gem-03.png');
+    game.load.image('gem-04', 'assets/images/game/gem-04.png');
+    game.load.image('gem-05', 'assets/images/game/gem-05.png');
+    game.load.image('gem-06', 'assets/images/game/gem-06.png');
+    game.load.image('gem-07', 'assets/images/game/gem-07.png');
+    game.load.image('gem-08', 'assets/images/game/gem-08.png');
+    game.load.image('gem-09', 'assets/images/game/gem-09.png');
+    game.load.image('gem-10', 'assets/images/game/gem-10.png');
+    game.load.image('gem-11', 'assets/images/game/gem-11.png');
+    game.load.image('gem-12', 'assets/images/game/gem-12.png');
+    game.load.image('hand', 'assets/images/game/hand.png');
+    game.load.image('shadow', 'assets/images/game/shadow.png');
+
+    game.load.image('particle-1', 'assets/images/particles/particle-1.png');
+    game.load.image('particle-2', 'assets/images/particles/particle-2.png');
+    game.load.image('particle-3', 'assets/images/particles/particle-3.png');
+    game.load.image('particle-4', 'assets/images/particles/particle-4.png');
+    game.load.image('particle-5', 'assets/images/particles/particle-5.png');
+    game.load.image('particle_ex1', 'assets/images/particles/particle_ex1.png');
+    game.load.image('particle_ex2', 'assets/images/particles/particle_ex2.png');
+    game.load.image('particle_ex3', 'assets/images/particles/particle_ex3.png');
+
+    //music
+    game.load.audio('backgroundMp3', 'assets/audio/background.mp3');
+
+    //  Load the Google WebFont Loader script
+    game.load.script('webfont', '//ajax.googleapis.com/ajax/libs/webfont/1.4.7/webfont.js');
+}
+
+function create() {
+    //Game initialization
+    //Add background
+    var background = game.add.sprite(0, 0, 'background');
+    background.angle = 90;
+    background.x = C.GAME_WIGTH;
+
+    //Add main menu
+    createMainMenu();
+}
+
+function createMainMenu() {
+    var mainMenu = game.add.group();
+
+    //Add logo
+    var donutsLogo = game.add.image(C.GAME_WIGTH / 2, 0, 'donuts_logo');
+    donutsLogo.anchor.setTo(0.5, 0);
+    mainMenu.add(donutsLogo);
+
+    //Add play button
+    var playBtn = game.add.button(C.GAME_WIGTH / 2, C.GAME_HEIGHT / 2, 'btn-play', function () {
+        mainMenu.destroy();
+        startGame();
+    });
+    playBtn.anchor.setTo(0.5);
+    mainMenu.add(playBtn);
+}
+
+function startGame() {
+    //gameplay
+    //start timer
+    timer = game.time.create(true);
+    timer.loop(10000, timeUp, this);
+    timer.start();
+
+    //Add UI elemetns
+    createUI();
+
+    //build board with donuts
+    createAllDonuts();
+    setTimeout(function () {
+        findMatches();
+    }, C.FALL_DELAY);
+    // findMatches();
+    /*if (this.matchAll()) {
+        setTimeout(() => {this.handleMatches()}, 250)
+    }*/
+    // handleMatches();
+
+    //bind events on mouse btn up and down
+    game.input.onDown.add(onSelect, this);
+    game.input.onUp.add(onRelease, this);
+
+    // console.log(this.donuts);
+}
+
+function createUI() {
+    //All interface elements
+
+    //Score bg image
+    var bgScore = game.add.image(C.GAME_WIGTH / 2, 0, 'bg-score');
+    bgScore.anchor.setTo(0.5, 0);
+
+    //Score label
+    textScore = game.add.text(C.GAME_WIGTH / 2 + 120, 60, score, {
+        font: "Fredoka One",
+        fontSize: "65px",
+        fill: C.TEXT_COLOR_WHITE,
+        align: "right"
+    });
+    textScore.anchor.setTo(1, 0);
+
+    /*//score counter quick test
+    setInterval(() => {
+        score++;
+        textScore.text = this.score;
+    }, 1000);*/
+
+    //Add timer label
+    textTimer = game.add.text(C.GAME_WIGTH - 50, 60, showTimeInSeconds(timer), {
+        font: "Fredoka One",
+        fontSize: "65px",
+        fill: C.TEXT_COLOR_LILAC,
+        align: "right"
+    });
+    textTimer.anchor.set(1, 0);
+    setInterval(function () {
+        textTimer.text = showTimeInSeconds(timer);
+    }, 100);
+    // console.log('this.timer.duration',this.timer.duration);
+}
+
+function createAllDonuts() {
+    //First spawn of donuts
+    donuts = game.add.group();
+    pauseGame();
+
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        matrix[i] = [];
+        for (var j = 0; j < C.DONUTS_NUMBER; j++) {
+            /*let donutImage = getRandomDonut();
+            let donut = donuts.create(i * C.DONUT_SIZE, j * C.DONUT_SIZE, donutImage);
+            donut.anchor.set(0.5);
+              matrix[i][j] = donut;*/
+            //TODO uncomment this:
+            createDonut(i, j);
         }
-    }return function (Constructor, protoProps, staticProps) {
-        if (protoProps) defineProperties(Constructor.prototype, protoProps);if (staticProps) defineProperties(Constructor, staticProps);return Constructor;
+    }
+    donuts.x = C.HALF_DONUT_SIZE;
+    donuts.y = C.OFFSET + C.HALF_DONUT_SIZE;
+}
+
+function createDonut(i, j) {
+    var donutImage = getRandomDonut();
+    var startY = 0 - C.OFFSET - C.DONUT_SIZE,
+        endY = j * C.DONUT_SIZE;
+    var donut = donuts.create(i * C.DONUT_SIZE, startY, donutImage);
+    donut.anchor.set(0.5);
+    var fallDonutTween = game.add.tween(donut).to({
+        y: endY
+    }, C.FALL_SPEED, Phaser.Easing.Linear.None, true);
+    matrix[i][j] = donut;
+}
+
+function resetMatchMap() {
+    //build new match map with no matches
+    matchMap = [];
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        matchMap[i] = [];
+        for (var j = 0; j < C.DONUTS_NUMBER; j++) {
+            matchMap[i][j] = null;
+        }
+    }
+}
+
+function matchRow(i, j) {
+    //check match donut for every position in possible chain in row
+    var matchPos1 = void 0,
+        matchPos2 = void 0,
+        matchPos3 = void 0;
+    // console.log('i, j', i, j, matrix[i][j]);
+    if (i + 2 < C.DONUTS_NUMBER) {
+        matchPos1 = matrix[i][j].key === matrix[i + 1][j].key && matrix[i][j].key === matrix[i + 2][j].key;
+    } else {
+        matchPos1 = false;
+    }
+
+    if (i - 1 >= 0 && i + 1 < C.DONUTS_NUMBER) {
+        matchPos2 = matrix[i - 1][j].key === matrix[i][j].key && matrix[i][j].key === matrix[i + 1][j].key;
+    } else {
+        matchPos2 = false;
+    }
+    if (i - 2 >= 0) {
+        matchPos3 = matrix[i - 2][j].key === matrix[i][j].key && matrix[i - 1][j].key === matrix[i][j].key;
+    } else {
+        matchPos3 = false;
+    }
+    // console.log('row: i, j', i, j, matchPos1 || matchPos2 || matchPos3);
+    return matchPos1 || matchPos2 || matchPos3;
+}
+
+function matchCol(i, j) {
+    //check match donut for every position in possible chain in column
+    var matchPos1 = void 0,
+        matchPos2 = void 0,
+        matchPos3 = void 0;
+    if (j + 2 < C.DONUTS_NUMBER) {
+        matchPos1 = matrix[i][j].key === matrix[i][j + 1].key && matrix[i][j].key === matrix[i][j + 2].key;
+    }
+    if (j - 1 >= 0 && j + 1 < C.DONUTS_NUMBER) {
+        matchPos2 = matrix[i][j - 1].key === matrix[i][j].key && matrix[i][j].key === matrix[i][j + 1].key;
+    } else {
+        matchPos2 = false;
+    }
+    if (j - 2 >= 0) {
+        matchPos3 = matrix[i][j - 2].key === matrix[i][j].key && matrix[i][j - 1].key === matrix[i][j].key;
+    } else {
+        matchPos3 = false;
+    }
+    // console.log('col: i, j', i, j, matchPos1 || matchPos2 || matchPos3);
+    return matchPos1 || matchPos2 || matchPos3;
+}
+
+function match(i, j) {
+    return matchRow(i, j) || matchCol(i, j);
+}
+
+function findMatches() {
+    resetMatchMap();
+    console.log('matrix', matrix);
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        for (var j = 0; j < C.DONUTS_NUMBER; j++) {
+            if (match(i, j)) {
+                // let matchedDonut = matrix[i][j];
+                // console.log('i, j', i, j, matrix[i][j]);
+                matchMap[i][j] = matrix[i][j];
+            }
+        }
+    }
+    // console.log('completed match map', matchMap);
+
+    killAll();
+    setTimeout(function () {
+        fallAll();
+    }, C.FALL_DELAY);
+    setTimeout(function () {
+        respawnAll();
+    }, C.RESPAWN_DELAY);
+    resumeGame();
+    // fallAll();
+    // respawnAll();
+}
+
+function kill(i, j) {
+    var killDonutTween = game.add.tween(matrix[i][j]).to({
+        alpha: 0
+    }, C.DESTROY_SPEED, Phaser.Easing.Linear.None, true);
+    killDonutTween.onComplete.add(function (donut) {
+        console.log('donut destroyed', i, j);
+        donut.destroy();
+    });
+    matrix[i][j] = null;
+}
+
+function killAll() {
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        for (var j = 0; j < C.DONUTS_NUMBER; j++) {
+            if (matchMap[i][j] !== null) {
+                kill(i, j);
+            }
+        }
+    }
+}
+
+function fall(i0, j0) {
+    var fallingFactor = 0; //how much holes donut should fall
+
+    var _loop = function _loop(j) {
+        var fallingDonut = matrix[i0][j];
+        if (fallingDonut !== null) {
+            var fallDonutTween = game.add.tween(fallingDonut).to({
+                y: fallingDonut.y + C.DONUT_SIZE * fallingFactor
+            }, C.FALL_SPEED, Phaser.Easing.Linear.None, true);
+            fallDonutTween.onComplete.add(function (donut) {
+                console.log('donut falling', i0, j);
+            });
+        } else {
+            fallingFactor++;
+        }
     };
-}();
 
-var _constants = require('../constants');
-
-function _classCallCheck(instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-        throw new TypeError("Cannot call a class as a function");
+    for (var j = j0; j >= 0; j--) {
+        _loop(j);
     }
 }
 
-function _possibleConstructorReturn(self, call) {
-    if (!self) {
-        throw new ReferenceError("this hasn't been initialised - super() hasn't been called");
-    }return call && (typeof call === "object" || typeof call === "function") ? call : self;
-}
-
-function _inherits(subClass, superClass) {
-    if (typeof superClass !== "function" && superClass !== null) {
-        throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-    }subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } });if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass;
-}
-
-var GameState = function (_Phaser$State) {
-    _inherits(GameState, _Phaser$State);
-
-    function GameState() {
-        _classCallCheck(this, GameState);
-
-        return _possibleConstructorReturn(this, (GameState.__proto__ || Object.getPrototypeOf(GameState)).apply(this, arguments));
+function fallAll() {
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        var fallingHeight = getFallingHeight(i);
+        console.log('fallingHeight', fallingHeight, "i:", i);
+        for (var j = 0; j < C.DONUTS_NUMBER; j++) {
+            if (fallingHeight) {
+                fall(i, j);
+            }
+        }
     }
+}
 
-    _createClass(GameState, [{
-        key: 'preload',
-        value: function preload() {
-            //Load all resources
-            this.load.image('bg-score', 'assets/images/bg-score.png');
-            this.load.image('big-shadow', 'assets/images/big-shadow.png');
-            this.load.image('btn-play', 'assets/images/btn-play.png');
-            this.load.image('btn-sfx', 'assets/images/btn-sfx.png');
-            this.load.image('donut', 'assets/images/donut.png');
-            this.load.image('donuts_logo', 'assets/images/donuts_logo.png');
-            this.load.image('text-timeup', 'assets/images/text-timeup.png');
+function getFallingHeight(i) {
+    //Count how many holes donuts should fall
+    return matrix[i].filter(function (donut) {
+        return donut === null;
+    }).length;
+}
 
-            this.game.load.image('background', 'assets/images/backgrounds/background.jpg');
+function respawn(i, j) {
+    createDonut(i, j);
+}
 
-            this.load.image('gem-01', 'assets/images/game/gem-01.png');
-            this.load.image('gem-02', 'assets/images/game/gem-02.png');
-            this.load.image('gem-03', 'assets/images/game/gem-03.png');
-            this.load.image('gem-04', 'assets/images/game/gem-04.png');
-            this.load.image('gem-05', 'assets/images/game/gem-05.png');
-            this.load.image('gem-06', 'assets/images/game/gem-06.png');
-            this.load.image('gem-07', 'assets/images/game/gem-07.png');
-            this.load.image('gem-08', 'assets/images/game/gem-08.png');
-            this.load.image('gem-09', 'assets/images/game/gem-09.png');
-            this.load.image('gem-10', 'assets/images/game/gem-10.png');
-            this.load.image('gem-11', 'assets/images/game/gem-11.png');
-            this.load.image('gem-12', 'assets/images/game/gem-12.png');
-            this.load.image('hand', 'assets/images/game/hand.png');
-            this.load.image('shadow', 'assets/images/game/shadow.png');
-
-            this.load.image('particle-1', 'assets/images/particles/particle-1.png');
-            this.load.image('particle-2', 'assets/images/particles/particle-2.png');
-            this.load.image('particle-3', 'assets/images/particles/particle-3.png');
-            this.load.image('particle-4', 'assets/images/particles/particle-4.png');
-            this.load.image('particle-5', 'assets/images/particles/particle-5.png');
-            this.load.image('particle_ex1', 'assets/images/particles/particle_ex1.png');
-            this.load.image('particle_ex2', 'assets/images/particles/particle_ex2.png');
-            this.load.image('particle_ex3', 'assets/images/particles/particle_ex3.png');
-
-            this.load.audio('backgroundMp3', 'assets/audio/background.mp3');
-        }
-    }, {
-        key: 'create',
-        value: function create() {
-            //Create game initial state
-
-            //Add background
-            var background = this.add.sprite(0, 0, 'background');
-            background.angle = 90;
-            background.x = _constants.GAME_WIGTH;
-
-            //Add main menu
-            this.createMainMenu();
-        }
-    }, {
-        key: 'createMainMenu',
-        value: function createMainMenu() {
-            var _this2 = this;
-
-            this.mainMenu = this.add.group();
-
-            //Add logo
-            var donutsLogo = this.add.image(_constants.GAME_WIGTH / 2, 0, 'donuts_logo');
-            donutsLogo.anchor.setTo(0.5, 0);
-            this.mainMenu.add(donutsLogo);
-
-            //Add play button
-            var playBtn = this.add.button(_constants.GAME_WIGTH / 2, _constants.GAME_HEIGHT / 2, 'btn-play', function () {
-                return _this2.startGame();
-            });
-            playBtn.anchor.setTo(0.5);
-            this.mainMenu.add(playBtn);
-        }
-    }, {
-        key: 'startGame',
-        value: function startGame() {
-            this.mainMenu.destroy();
-
-            //inputEnabled: contain state - swaping donuts allowed or not
-            this.inputEnabled = true;
-
-            //flag of fast donuts falling
-            this.fastFall = false;
-
-            //matrix contain image of game board
-            this.matrix = [];
-
-            //list of items for remove
-            this.remove = [];
-
-            //Add score
-            this.score = 0;
-
-            //Add timer;
-            this.timer = this.time.create(true);
-            this.timer.loop(10000, this.timeUp, this);
-            this.timer.start();
-
-            //Reset target and selected donuts
-            this.selected = _constants.DEFAULT_SELECTED_OBJ;
-            this.target = _constants.DEFAULT_SELECTED_OBJ;
-
-            //Add UI elemetns
-            this.createUI();
-
-            //build board with donuts
-            this.createDonuts();
-            /*if (this.matchAll()) {
-                setTimeout(() => {this.handleMatches()}, 250)
-            }*/
-            this.handleMatches();
-
-            //bind events on mouse btn up and down
-            this.input.onDown.add(this.onSelect, this);
-            this.input.onUp.add(this.onRelease, this);
-
-            // console.log(this.donuts);
-        }
-    }, {
-        key: 'createUI',
-        value: function createUI() {
-            var _this3 = this;
-
-            //All interface elements
-
-            //Score imege
-            var bgScore = this.add.image(_constants.GAME_WIGTH / 2, 0, 'bg-score');
-            bgScore.anchor.setTo(0.5, 0);
-            // bgScore.x = GAME_WIGTH / 2;
-
-            //Score label
-            this.textScore = this.add.text(_constants.GAME_WIGTH / 2 + 120, 60, this.score, {
-                font: "65px Arial",
-                fill: "#ffe6b3",
-                align: "right"
-            });
-            this.textScore.anchor.setTo(1, 0);
-
-            /*//score counter quick test
-            setInterval(() => {
-                this.score++;
-                textScore.text = this.score;
-            }, 1000);*/
-
-            //Add timer label
-            var timer = this.add.text(_constants.GAME_WIGTH - 50, 60, GameState.showTimeInSeconds(this.timer), { font: "65px Arial", fill: "#6397ff", align: "right" });
-            timer.anchor.set(1, 0);
-            setInterval(function () {
-                timer.text = GameState.showTimeInSeconds(_this3.timer);
-            }, 100);
-            // console.log('this.timer.duration',this.timer.duration);
-        }
-    }, {
-        key: 'createDonuts',
-        value: function createDonuts() {
-            //First spawn of donuts
-            this.donuts = this.add.group();
-
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                this.matrix[i] = [];
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    var donutImage = GameState.getRandomDonut();
-                    var donut = this.donuts.create(i * _constants.DONUT_SIZE, j * _constants.DONUT_SIZE, donutImage);
-                    donut.anchor.set(0.5);
-
-                    this.matrix[i][j] = donut;
-                }
-            }
-            this.donuts.x = _constants.HALF_DONUT_SIZE;
-            this.donuts.y = _constants.OFFSET + _constants.HALF_DONUT_SIZE;
-        }
-    }, {
-        key: 'onSelect',
-        value: function onSelect(pointer) {
-            //selection donut
-
-            // console.log('selected', pointer);
-            var pointerY = pointer.y - _constants.OFFSET;
-            var pointerX = pointer.x;
-            if (this.inputEnabled) {
-                var j = Math.floor(pointerY / _constants.DONUT_SIZE),
-                    i = Math.floor(pointerX / _constants.DONUT_SIZE),
-                    pointed = this.getFromMatrix(i, j);
-                // console.log('pointed', i, j, pointed);
-                if (pointed !== -1) {
-                    // console.log('this.selected',this.selected.donut);
-                    if (this.selected.donut === null) {
-                        // console.log('this.selected.donut === null');
-                        pointed.scale.setTo(1.2);
-                        pointed.bringToTop();
-                        this.selected.donut = pointed;
-                        this.input.addMoveCallback(this.move, this);
-                    } else {
-                        if (this.areSame(pointed, this.selected.donut)) {
-                            //if donut already selected, remove selection
-                            this.selected.donut.scale.setTo(1);
-                            this.selected.donut = null;
-                        } else {
-                            if (this.areNext(pointed, this.selected.donut)) {
-                                //if donuts are neighbors, swap them
-                                this.selected.donut.scale.setTo(1);
-                                this.swap(this.selected.donut, pointed, true);
-                            } else {
-                                //choose pointed donut
-                                this.selected.donut.scale.setTo(1);
-                                pointed.scale.setTo(1.2);
-                                this.selected.donut = pointed;
-                                this.input.addMoveCallback(this.move, this);
-                            }
-                        }
-                    }
-                }
+function respawnAll() {
+    matrixCorrection();
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        for (var j = 0; j < C.DONUTS_NUMBER; j++) {
+            if (matrix[i][j] === null) {
+                respawn(i, j);
             }
         }
-    }, {
-        key: 'areNext',
-        value: function areNext(donut1, donut2) {
-            //are donut1 and donut2 located in neighboring cells?
-            return Math.abs(this.getRow(donut1) - this.getRow(donut2)) + Math.abs(this.getCol(donut1) - this.getCol(donut2)) === 1;
-        }
-    }, {
-        key: 'areSame',
-        value: function areSame(donut1, donut2) {
-            //are donut1 and 2 the same donut?
-            return this.getRow(donut1) === this.getRow(donut2) && this.getCol(donut1) === this.getCol(donut2);
-        }
-    }, {
-        key: 'getRow',
-        value: function getRow(donut) {
-            return Math.floor(donut.y / _constants.DONUT_SIZE);
-        }
-    }, {
-        key: 'getCol',
-        value: function getCol(donut) {
-            return Math.floor(donut.x / _constants.DONUT_SIZE);
-        }
-    }, {
-        key: 'onRelease',
-        value: function onRelease() {
-            // console.log('released');
-            this.input.deleteMoveCallback(this.move, this);
-        }
-    }, {
-        key: 'move',
-        value: function move(event, pX, pY) {
-            //action on pointer moving
-            // console.log('move');
-            if (event.id === 0) {
-                var dX = pX - this.selected.donut.x,
-                    dY = pY - this.selected.donut.y,
-                    dI = 0,
-                    dJ = 0;
-                if (Math.abs(dX) > _constants.HALF_DONUT_SIZE) {
-                    dJ = dX > 0 ? 1 : -1;
-                    /*if (dX > 0) {
-                        dJ = 1;
-                    } else {
-                        dJ = -1;
-                    }*/
-                } else {
-                    if (Math.abs(dY) > _constants.HALF_DONUT_SIZE) {
-                        dI = dY > 0 ? 1 : -1;
-                        /*if (dY > 0) {
-                            dI = 1;
-                        } else {
-                            dI = -1;
-                        }*/
-                    }
-                }
-                if (dI + dJ !== 0) {
-                    //try to swap donuts
-                    var pointed = this.getFromMatrix(this.getRow(this.selected.donut) + dI, this.getCol(this.selected.donut) + dJ);
-                    // console.log('pointed', pointed, 'selected', this.selected.donut);
-                    if (pointed !== -1) {
-                        this.selected.donut.scale.setTo(1);
-                        // console.log('pointed', pointed, 'selected', this.selected.donut);
-                        this.swap(this.selected.donut, pointed, true);
-                        // this.swap(pointed, this.selected, true);
-                        this.input.deleteMoveCallback(this.move, this);
-                    }
-                }
-            }
-        }
-    }, {
-        key: 'swap',
-        value: function swap(donut1, donut2, swapBack) {
-            var _this4 = this;
+    }
+}
 
-            //swapping donuts
-            // console.log('swap');
+function matrixCorrection() {
+    //Move all nulls in matrix to row start
+    //TODO can I refactor this?
+    for (var i = 0; i < C.DONUTS_NUMBER; i++) {
+        var nulls = matrix[i].filter(function (donut) {
+            return donut === null;
+        }),
+            _donuts = matrix[i].filter(function (donut) {
+            return donut !== null;
+        });
+        matrix[i] = [].concat(_toConsumableArray(nulls), _toConsumableArray(_donuts));
+    }
+}
 
-            // this.inputEnabled = false;
-            this.pauseGame();
-            // let fromColor = donut1.key;
-            var fromSprite = donut1;
-            // let toColor = donut2.key;
-            var toSprite = donut2;
-            // this.matrix[this.getRow(donut1)][this.getCol(donut1)].key = toColor;
-            this.matrix[this.getRow(donut1)][this.getCol(donut1)] = donut2;
-            // this.matrix[this.getRow(donut2)][this.getCol(donut2)].key = fromColor;
-            this.matrix[this.getRow(donut2)][this.getCol(donut2)] = donut1;
-            //swap animation
-            var donut1Tween = this.add.tween(this.matrix[this.getRow(donut1)][this.getCol(donut1)]).to({
-                x: this.getCol(donut1) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
-                , y: this.getRow(donut1) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
-            }, _constants.SWAP_SPEED, Phaser.Easing.Linear.None, true);
-            var donut2Tween = this.add.tween(this.matrix[this.getRow(donut2)][this.getCol(donut2)]).to({
-                x: this.getCol(donut2) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
-                , y: this.getRow(donut2) * _constants.DONUT_SIZE /*+ HALF_DONUT_SIZE*/
-            }, _constants.SWAP_SPEED, Phaser.Easing.Linear.None, true);
-            //after animation complete match donuts
-            donut2Tween.onComplete.add(function () {
-                console.log('this.matchAll', _this4.matchAll());
-                if (!_this4.matchAll() && swapBack) {
-                    _this4.swap(donut1, donut2, false);
-                } else {
-                    if (_this4.matchAll()) {
-                        _this4.handleMatches();
-                        _this4.updateTimer(2);
-                        _this4.updateScore();
-                    } else {
-                        _this4.resumeGame();
-                        _this4.selected.donut = null;
-                    }
-                }
-            });
-        }
-    }, {
-        key: 'matchByRow',
-        value: function matchByRow(i, j) {
-            //find donuts with the same color in a row
-            return this.getFromMatrix(i, j).key === this.getFromMatrix(i, j - 1).key && this.getFromMatrix(i, j).key === this.getFromMatrix(i, j - 2).key;
-        }
-    }, {
-        key: 'matchByColumn',
-        value: function matchByColumn(i, j) {
-            //find donuts with the same color in a column
-            return this.getFromMatrix(i, j).key === this.getFromMatrix(i - 1, j).key && this.getFromMatrix(i, j).key === this.getFromMatrix(i - 2, j).key;
-        }
-    }, {
-        key: 'match',
-        value: function match(i, j) {
-            //collect all matches
-            return this.matchByRow(i, j) || this.matchByColumn(i, j);
-        }
-    }, {
-        key: 'matchAll',
-        value: function matchAll() {
-            //find matches at the board
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    if (this.match(i, j)) {
-                        console.log('this.match', i, j);
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
-    }, {
-        key: 'handleMatches',
-        value: function handleMatches() {
-            //fill remove array
-            /*console.log('this.remove', this);
-            console.log('this.remove', this.remove);*/
-            this.remove = [];
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                this.remove[i] = [];
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    this.remove[i].push(0);
-                }
-            }
-            this.handleHorizontalMatches();
-            this.handleVerticalMatches();
-            this.destroy();
-        }
-    }, {
-        key: 'handleVerticalMatches',
-        value: function handleVerticalMatches() {
-            //find matched donuts in column
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                var colorStreak = 1;
-                var currentColor = '';
-                var startStreak = 0;
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    if (this.getFromMatrix(j, i).key === currentColor) {
-                        colorStreak++;
-                    }
-                    if (this.getFromMatrix(j, i).key !== currentColor || j === _constants.DONUTS_NUMBER - 1) {
-                        if (colorStreak >= 3) {
-                            // console.log("VERTICAL :: Length = " + colorStreak + " :: Start = (" + startStreak + "," + i + ") :: Color = " + currentColor);
-                            for (var k = 0; k < colorStreak; k++) {
-                                this.remove[startStreak + k][i]++;
-                            }
-                        }
-                        startStreak = j;
-                        colorStreak = 1;
-                        currentColor = this.getFromMatrix(j, i).key;
-                    }
-                }
+function onSelect(pointer) {
+    var pointerY = pointer.y - _constants.OFFSET;
+    var pointerX = pointer.x;
+    if (inputEnabled) {
+        var j = Math.floor(pointerY / _constants.DONUT_SIZE),
+            i = Math.floor(pointerX / _constants.DONUT_SIZE);
+        if (isInRange(i, j)) {
+            var pointed = matrix[i][j];
+            // console.log('i, j', i, j, pointed);
+            /*if (isNull(selected)) {
+                //if there no selected donut select it
+                pointed.scale.setTo(1.2);
+                pointed.bringToTop();
+                selected = pointed;
+                game.input.addMoveCallback(move, this);
+            } else*/
+            if (areSame(selected, pointed)) {
+                //if pointed donut already select, clear selection
+                selected.scale.setTo(1);
+                selected = null;
+            } else if (areNeighbors(selected, pointed)) {
+                //if donuts are neighbors, swap them
+                selected.scale.setTo(1);
+                swap(selected, pointed);
+            } else {
+                //choose pointed donut
+                pointed.scale.setTo(1.2);
+                selected = pointed;
+                game.input.addMoveCallback(move, this);
             }
         }
-    }, {
-        key: 'handleHorizontalMatches',
-        value: function handleHorizontalMatches() {
-            //find matched donuts in row
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                var colorStreak = 1;
-                var currentColor = '';
-                var startStreak = 0;
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    if (this.getFromMatrix(j, i).key === currentColor) {
-                        colorStreak++;
-                    }
-                    if (this.getFromMatrix(j, i).key !== currentColor || j === _constants.DONUTS_NUMBER - 1) {
-                        if (colorStreak >= 3) {
-                            // console.log("HORIZONTAL :: Length = " + colorStreak + " :: Start = (" + i + "," + startStreak + ") :: Color = " + currentColor);
-                            for (var k = 0; k < colorStreak; k++) {
-                                this.remove[i][startStreak + k]++;
-                            }
-                        }
-                        startStreak = j;
-                        colorStreak = 1;
-                        currentColor = this.getFromMatrix(j, i).key;
-                    }
-                }
-            }
-        }
-    }, {
-        key: 'destroy',
-        value: function destroy() {
-            var _this5 = this;
+    }
+}
 
-            //remove all donuts, flagged at remove array
-            console.log('destroying');
-            // console.log('this.remove', this.remove);
-            var destroyed = 0;
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    // console.log('this.remove[i][j]', this.remove[i][j], i, j);
+function isInRange(i, j) {
+    return i >= 0 && i < C.DONUTS_NUMBER && j >= 0 && j < C.DONUTS_NUMBER;
+}
 
-                    if (this.remove[i][j] > 0) {
-                        //removing animation
-                        var destroyTween = this.add.tween(this.matrix[i][j]).to({
-                            alpha: 0
-                        }, _constants.DESTROY_SPEED, Phaser.Easing.Linear.None, true);
-                        destroyed++;
-                        //after animation complete, destroy donut
-                        destroyTween.onComplete.add(function (donut) {
-                            donut.destroy();
-                            destroyed--;
-                            if (destroyed === 0) {
-                                _this5.fall();
-                                if (_this5.fastFall) {
-                                    _this5.respawn();
-                                }
-                            }
-                        });
-                        this.matrix[i][j] = null;
-                    }
-                }
+function isNull(selected) {
+    return selected === null;
+}
+
+function areSame(selected, pointed) {
+    if (isNull(selected) || isNull(pointed)) {
+        return false;
+    } else {
+        return getI(selected) === getI(pointed) && getJ(selected) === getJ(pointed);
+    }
+}
+
+function areNeighbors(selected, pointed) {
+    if (isNull(selected) || isNull(pointed)) {
+        return false;
+    } else {
+        var iS = getI(selected),
+            jS = getJ(selected),
+            iP = getI(pointed),
+            jP = getJ(pointed),
+            isNeighborsByI = Math.abs(iS - iP) === 1 && jS === jP,
+            isNeighborsByJ = Math.abs(jS - jP) === 1 && iS === iP;
+        return isNeighborsByI || isNeighborsByJ;
+    }
+}
+
+function getJ(donut) {
+    return Math.floor(donut.y / C.DONUT_SIZE);
+}
+
+function getI(donut) {
+    return Math.floor(donut.x / C.DONUT_SIZE);
+}
+
+function onRelease() {
+    game.input.deleteMoveCallback(move);
+}
+
+function move(event, pX, pY) {
+    //action on pointer moving
+    // console.log('move');
+    if (event.id === 0) {
+        var dX = pX - selected.x,
+            dY = pY - selected.y,
+            dI = 0,
+            dJ = 0;
+        if (Math.abs(dX) > C.HALF_DONUT_SIZE) {
+            dJ = dX > 0 ? 1 : -1;
+        } else if (Math.abs(dY) > C.HALF_DONUT_SIZE) {
+            dI = dY > 0 ? 1 : -1;
+        }
+        if (dI !== -dJ) {
+            //try to swap donuts
+            var pointedI = getI(selected) + dI,
+                pointedJ = getJ(selected) + dJ;
+            if (isInRange(pointedI, pointedJ)) {
+                var pointed = matrix[pointedI][pointedJ];
+                selected.scale.setTo(1);
+                swap(selected, pointed, true);
+                game.input.deleteMoveCallback(move);
             }
         }
-    }, {
-        key: 'fall',
-        value: function fall() {
-            var _this6 = this;
+    }
+}
 
-            //move down donuts
-            var fallen = 0;
-            var restart = false;
-            for (var i = _constants.DONUTS_NUMBER - 1; i >= 0; i--) {
-                for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                    if (this.matrix[i][j] != null) {
-                        var fallTiles = this.holesBelow(i, j);
-                        if (fallTiles > 0) {
-                            if (!this.fastFall && fallTiles > 1) {
-                                fallTiles = 1;
-                                restart = true;
-                            }
-                            var donut2Tween = this.add.tween(this.matrix[i][j]).to({
-                                y: this.matrix[i][j].y + fallTiles * _constants.DONUT_SIZE
-                            }, _constants.FALL_SPEED, Phaser.Easing.Linear.None, true);
-                            fallen++;
-                            donut2Tween.onComplete.add(function () {
-                                fallen--;
-                                if (fallen === 0) {
-                                    if (restart) {
-                                        _this6.fall();
-                                    } else {
-                                        if (!_this6.fastFall) {
-                                            _this6.respawn();
-                                        }
-                                    }
-                                }
-                            });
-                            this.matrix[i + fallTiles][j] = this.matrix[i][j];
-                            this.matrix[i][j] = null;
-                        }
-                    }
-                }
-            }
-            if (fallen === 0) {
-                this.respawn();
-            }
-        }
-    }, {
-        key: 'respawn',
-        value: function respawn() {
-            var _this7 = this;
+function swap() {
+    console.log('swap!');
+}
 
-            //add new donuts instead of destroyed
-            var respwaned = 0;
-            var restart = false;
-            for (var j = 0; j < _constants.DONUTS_NUMBER; j++) {
-                var emptySpots = this.holesInCol(j);
-                if (emptySpots > 0) {
-                    if (!this.fastFall && emptySpots > 1) {
-                        emptySpots = 1;
-                        restart = true;
-                    }
-                    for (var i = 0; i < emptySpots; i++) {
-                        var donut = this.donuts.create(_constants.DONUT_SIZE * j + _constants.DONUT_SIZE / 2, -(_constants.DONUT_SIZE * (emptySpots - 1 - i) + _constants.DONUT_SIZE / 2), GameState.getRandomDonut());
-                        donut.anchor.set(0.5);
-                        this.donuts.add(donut);
-                        this.matrix[i][j] = donut;
+function pauseGame() {
+    inputEnabled = false;
+    timer.pause();
+}
 
-                        var donut2Tween = this.add.tween(this.matrix[i][j]).to({
-                            y: _constants.DONUT_SIZE * i + _constants.HALF_DONUT_SIZE + _constants.OFFSET
-                        }, _constants.FALL_SPEED, Phaser.Easing.Linear.None, true);
-                        respwaned++;
-                        donut2Tween.onComplete.add(function () {
-                            respwaned--;
-                            if (respwaned === 0) {
-                                if (restart) {
-                                    _this7.fall();
-                                } else {
-                                    if (_this7.matchAll()) {
-                                        setTimeout(function () {
-                                            _this7.handleMatches();
-                                        }, 250);
-                                        /*Problem with context
-                                        this.time.events.add(250, this.handleMatches);*/
-                                    } else {
-                                        _this7.resumeGame();
-                                        _this7.selected.donut = null;
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-        }
-    }, {
-        key: 'holesBelow',
-        value: function holesBelow(row, col) {
-            //count holes below donut at position
-            var result = 0;
-            for (var i = row + 1; i < _constants.DONUTS_NUMBER; i++) {
-                if (this.matrix[i][col] === null) {
-                    result++;
-                }
-            }
-            return result;
-        }
-    }, {
-        key: 'holesInCol',
-        value: function holesInCol(col) {
-            //count holes in column
-            var result = 0;
-            for (var i = 0; i < _constants.DONUTS_NUMBER; i++) {
-                if (this.matrix[i][col] === null) {
-                    result++;
-                }
-            }
-            return result;
-        }
-    }, {
-        key: 'getFromMatrix',
-        value: function getFromMatrix(i, j) {
-            //get donut from matrix
-            return i >= 0 && i < _constants.DONUTS_NUMBER && j >= 0 && j < _constants.DONUTS_NUMBER ? this.matrix[i][j] : -1;
-            /*if (i < 0 || i >= DONUTS_NUMBER || j < 0 || j >= DONUTS_NUMBER) {
-                return -1;
-            }
-            return this.matrix[i][j];*/
-        }
-    }, {
-        key: 'pauseGame',
-        value: function pauseGame() {
-            this.inputEnabled = false;
-            this.timer.pause();
-        }
-    }, {
-        key: 'resumeGame',
-        value: function resumeGame() {
-            this.inputEnabled = true;
-            this.timer.resume();
-        }
-    }, {
-        key: 'updateScore',
-        value: function updateScore() {
-            this.score++;
-            this.textScore.text = this.score;
-        }
-    }, {
-        key: 'updateTimer',
-        value: function updateTimer(seconds) {
-            var newDuration = this.timer.duration + seconds * 1000;
-            this.timer.stop();
-            this.timer.loop(newDuration, this.timeUp, this);
-            this.timer.start();
-        }
-    }, {
-        key: 'timeUp',
-        value: function timeUp() {
-            console.log('time up!');
-            this.timer.stop();
-            this.inputEnabled = false;
-            var timeup = this.add.image(_constants.GAME_WIGTH / 2, _constants.GAME_HEIGHT / 2, 'text-timeup');
-            timeup.anchor.set(0.5);
-            this.showGameOver();
-        }
-    }, {
-        key: 'showGameOver',
-        value: function showGameOver() {
-            var gameOver = this.add.text(_constants.GAME_WIGTH / 2, _constants.GAME_HEIGHT / 2 + 300, 'Game is over, your score is ' + this.score, { font: "65px 700 Arial", fill: "#2b0203", align: "right" });
-            gameOver.anchor.set(0.5);
-        }
-    }], [{
-        key: 'showTimeInSeconds',
-        value: function showTimeInSeconds(timer) {
-            return Math.ceil(timer.duration / 1000);
-        }
-    }, {
-        key: 'getRandomDonut',
-        value: function getRandomDonut() {
-            var randomDonut = Math.floor(Math.random() * _constants.DONUTS.length);
-            return _constants.DONUTS[randomDonut];
-        }
-    }]);
+function resumeGame() {
+    inputEnabled = true;
+    timer.resume();
+}
 
-    return GameState;
-}(Phaser.State);
+function updateScore() {
+    score++;
+    textScore.text = score;
+}
 
-exports.default = GameState;
+function updateTimer(seconds) {
+    var newDuration = timer.duration + seconds * 1000;
+    timer.stop();
+    timer.loop(newDuration, timeUp, this);
+    timer.start();
+}
 
-},{"../constants":1}]},{},[2])
+function timeUp() {
+    console.log('time up!');
+    timer.stop();
+    /*inputEnabled = false;
+    let timeup = game.add.image(C.GAME_WIGTH / 2, C.GAME_HEIGHT / 2, 'text-timeup');
+    timeup.anchor.set(0.5);
+    showGameOver();*/
+}
+
+function showGameOver() {
+    var gameOver = game.add.text(C.GAME_WIGTH / 2, C.GAME_HEIGHT / 2 + 300, "Game is over, your score is " + score, {
+        font: "Fredoka One",
+        fontSize: "65px",
+        fontWeight: "bold",
+        strokeThickness: C.TEXT_STROKE,
+        stroke: C.TEXT_STROKE_COLOR,
+        fill: C.TEXT_COLOR_WHITE,
+        align: "right"
+    });
+    gameOver.anchor.set(0.5);
+}
+
+function showTimeInSeconds(timer) {
+    return Math.ceil(timer.duration / 1000);
+}
+
+function getRandomDonut() {
+    var randomDonut = Math.floor(Math.random() * C.DONUTS.length);
+    return C.DONUTS[randomDonut];
+}
+
+},{"./constants":1}]},{},[2])
 //# sourceMappingURL=game.js.map
