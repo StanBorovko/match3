@@ -192,7 +192,7 @@ function startGame() {
     //build board with donuts
     createAllDonuts();
     setTimeout(function () {
-        findMatches();
+        manageMatches();
     }, C.FALL_DELAY);
     // findMatches();
     /*if (this.matchAll()) {
@@ -338,30 +338,39 @@ function match(i, j) {
     return matchRow(i, j) || matchCol(i, j);
 }
 
-function findMatches() {
-    resetMatchMap();
-    console.log('matrix', matrix);
+function findAllMatches() {
+    var matches = false;
     for (var i = 0; i < C.DONUTS_NUMBER; i++) {
         for (var j = 0; j < C.DONUTS_NUMBER; j++) {
             if (match(i, j)) {
                 // let matchedDonut = matrix[i][j];
                 // console.log('i, j', i, j, matrix[i][j]);
                 matchMap[i][j] = matrix[i][j];
+                matches = true;
             }
         }
     }
-    // console.log('completed match map', matchMap);
+    return matches;
+}
 
-    killAll();
-    setTimeout(function () {
-        fallAll();
-    }, C.FALL_DELAY);
-    setTimeout(function () {
-        respawnAll();
-    }, C.RESPAWN_DELAY);
+function manageMatches() {
+    resetMatchMap();
+    console.log('matrix', matrix);
+
+    // console.log('completed match map', matchMap);
+    var thereAreMatches = findAllMatches();
+    if (thereAreMatches) {
+        killAll();
+        setTimeout(function () {
+            fallAll();
+        }, C.FALL_DELAY);
+        setTimeout(function () {
+            respawnAll();
+        }, C.RESPAWN_DELAY);
+        // fallAll();
+        // respawnAll();
+    }
     resumeGame();
-    // fallAll();
-    // respawnAll();
 }
 
 function kill(i, j) {
@@ -482,6 +491,7 @@ function onSelect(pointer) {
             } else {
                 //choose pointed donut
                 pointed.scale.setTo(1.2);
+                pointed.bringToTop();
                 selected = pointed;
                 game.input.addMoveCallback(move, this);
             }
@@ -528,7 +538,7 @@ function getI(donut) {
 }
 
 function onRelease() {
-    game.input.deleteMoveCallback(move);
+    game.input.deleteMoveCallback(move, this);
 }
 
 function move(event, pX, pY) {
@@ -536,7 +546,7 @@ function move(event, pX, pY) {
     // console.log('move');
     if (event.id === 0) {
         var dX = pX - selected.x,
-            dY = pY - selected.y,
+            dY = pY - selected.y - C.OFFSET,
             dI = 0,
             dJ = 0;
         if (Math.abs(dX) > C.HALF_DONUT_SIZE) {
@@ -544,7 +554,7 @@ function move(event, pX, pY) {
         } else if (Math.abs(dY) > C.HALF_DONUT_SIZE) {
             dI = dY > 0 ? 1 : -1;
         }
-        if (dI !== -dJ) {
+        if (dI - dJ !== 0) {
             //try to swap donuts
             var pointedI = getI(selected) + dI,
                 pointedJ = getJ(selected) + dJ;
@@ -552,15 +562,13 @@ function move(event, pX, pY) {
                 var pointed = matrix[pointedI][pointedJ];
                 selected.scale.setTo(1);
                 swap(selected, pointed, true);
-                game.input.deleteMoveCallback(move);
+                game.input.deleteMoveCallback(move, this);
             }
         }
     }
 }
 
 function swap(selected, pointed, swapBack) {
-    var _this = this;
-
     //swapping donuts
     console.log('swap!');
     pauseGame();
@@ -580,16 +588,17 @@ function swap(selected, pointed, swapBack) {
     }, C.SWAP_SPEED, Phaser.Easing.Linear.None, true);
     //after animation complete match donuts
     donut2Tween.onComplete.add(function () {
-        if (!_this.matchAll() && swapBack) {
-            _this.swap(donut1, donut2, false);
+        var thereAreMatches = findAllMatches();
+        if (!thereAreMatches && swapBack) {
+            swap(selected, pointed, false);
         } else {
-            if (_this.matchAll()) {
-                _this.handleMatches();
-                _this.updateTimer(2);
-                _this.updateScore();
+            if (thereAreMatches) {
+                manageMatches();
+                updateTimer(5);
+                updateScore();
             } else {
-                _this.resumeGame();
-                _this.selected.donut = null;
+                resumeGame();
+                selected = null;
             }
         }
     });
