@@ -255,7 +255,6 @@ function createAllDonuts() {
             let donut = donuts.create(i * C.DONUT_SIZE, j * C.DONUT_SIZE, donutImage);
             donut.anchor.set(0.5);
               matrix[i][j] = donut;*/
-            //TODO uncomment this:
             createDonut(i, j);
         }
     }
