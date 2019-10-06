@@ -225,7 +225,7 @@ function startGame() {
     pauseGame();
     resetMatchMap();
 
-    while (findAllMatches()) {
+    if (findAllMatches()) {
         setTimeout(function () {
             manageMatches();
         }, 500);
